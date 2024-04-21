@@ -1,0 +1,179 @@
+from collections.optional import Optional
+from time import now, sleep
+
+
+alias ASCII_PARTIAL_FULL_CHARS = String(' 123456789')
+
+var x: Int = 5
+
+
+struct awdy:
+    var current: Int
+    var total: Optional[Int]
+    var leave: Bool
+    var ncols: Int
+    var mininterval: Float64
+    var ascii: Bool
+    var unit: String
+    var smoothing: Float64
+    var _current_ema: Optional[Int]
+    #var unit_scale: complicated
+    #var unit_divisor: Float
+    var _start_time: Int
+    var _last_update_time: Int
+    var _last_draw_time: Int
+
+    fn __init__(
+        inout self,
+        total: Optional[Int] = None,
+        leave: Bool = True,
+        ncols: Int = 120,
+        mininterval: Float64 = 0.1,
+        ascii: Bool=False,
+        unit: String = 'it',
+        smoothing: Float64 = 0.3
+    ):
+        self.current = 0
+        self.total = total
+        self.leave = leave
+        self.ncols = ncols
+        self.mininterval = mininterval
+        self.ascii = ascii
+        self.unit = unit
+        self.smoothing = smoothing
+        self._current_ema = None
+        self._start_time = now()
+        self._last_update_time = self._start_time
+        self._last_draw_time = self._start_time
+        self.draw()
+
+    fn update(inout self, increment: Int=1):
+        self.current += increment
+        var current_time = now()
+
+        # update _current_ema
+        if self.smoothing == 1:
+            if self.current == 0:
+                self._current_ema = Int.MAX
+            else:
+                self._current_ema = (current_time - self._start_time) // self.current
+        else:
+            var time_since_last_update = current_time - self._last_update_time
+            if self._current_ema:
+                var current_ema = self._current_ema.or_else(0)
+                self._current_ema = (current_ema * self.smoothing + time_since_last_update * (1 - self.smoothing)).to_int()
+            else:
+                self._current_ema = time_since_last_update
+        
+        # redraw if appropriate
+        var time_since_last_draw_sec = (current_time - self._last_draw_time) / 1_000_000_000
+        if time_since_last_draw_sec > self.mininterval:
+            self._last_draw_time = current_time
+            self.redraw()
+
+        self._last_update_time = current_time
+
+    fn close(self):
+        pass
+
+    fn draw(self):
+        var l_bar = String()
+        var m_bar = String()
+        var r_bar = String()
+
+        if self.total:
+            var total = self.total.or_else(0)
+            l_bar = self._left_pad(self.current * 100 // total, 3) + '%'
+            r_bar = (
+                String(' ') + self._left_pad(self.current, self._n_digits(total)) + '/' + total + ' '
+                + '[' + self._format_time(self._last_update_time - self._start_time)
+                + '<' + self._format_estimated_time_remaining()
+                + ', ' + self._format_rate() + ']'
+            )
+            var m_bar_size_budget = self.ncols - len(l_bar) - len(r_bar) - 2
+            if m_bar_size_budget > 0:
+                var full_cells = self.current / total * m_bar_size_budget
+                var n_full_cells = full_cells.to_int()
+                var n_empty_cells = (m_bar_size_budget - full_cells).to_int()
+                var partial_full_cell = (
+                    ASCII_PARTIAL_FULL_CHARS[(full_cells % 1 * 10).to_int()]
+                    if n_full_cells + n_empty_cells != m_bar_size_budget
+                    else String()
+                )
+                m_bar = String('|') + String('#') * n_full_cells + partial_full_cell + String(' ') * n_empty_cells + '|'
+        else:
+            l_bar = String(self.current) + self.unit + ' '
+            r_bar = String('[') + self._format_time(self._last_update_time - self._start_time) + ', ' + self._format_rate() + ']'
+
+        print(l_bar + m_bar + r_bar)
+
+    fn redraw(self):
+        self._move_cursor_up()
+        self._clear_line()
+        self.draw()
+
+    fn write(self):
+        """Is this even possible?. Yes!."""
+        # awprinty
+        pass
+
+    fn _format_time(self, time: Int) -> String:
+        var dt_s = time // 1_000_000_000
+        var dt_m = dt_s // 60
+        var dt_h = dt_m // 60
+        var s_remainder = dt_s % 60
+        var m_remainder = dt_m % 60
+
+        var s = String() if dt_h == 0 else self._left_pad(dt_h, 2, '0') + ':'
+        s += self._left_pad(m_remainder, 2, '0') + ':' + self._left_pad(s_remainder, 2, '0')
+        return s
+
+    fn _format_rate(self) -> String:
+        if not self._current_ema:
+            return String('?') + self.unit + '/s'
+        var units_per_s = 1 / self._current_ema.or_else(0) * 1_000_000_000
+        var formatted_rate = String()
+        if units_per_s >= 1:
+            formatted_rate = self._format_round(units_per_s, 2) + self.unit + '/s'
+        else:
+            var s_per_unit = 1 / units_per_s
+            formatted_rate = self._format_round(s_per_unit, 2) + 's/' + self.unit
+        return formatted_rate
+
+    fn _format_estimated_time_remaining(self) -> String:
+        if not self._current_ema:
+            return String('?')
+        var total = self.total.or_else(0)
+        var remaining = total - self.current
+        var elapsed_time_ns = self._last_update_time - self._start_time
+        var unit_per_ns = 1 / self._current_ema.or_else(0)
+        var etr = remaining / unit_per_ns
+        return self._format_time(etr.to_int())
+
+    fn _format_round(self, number: Float64, owned ndigits: Int) -> String:
+        var n_left_of_point = self._n_digits(number.to_int())
+        var chars_wanted = n_left_of_point+1+ndigits
+        var num_s = String(number)
+        if chars_wanted >= len(num_s):
+            return num_s
+        else:
+            return String(number)[:chars_wanted]
+
+    @always_inline
+    fn _move_cursor_up(self):
+        print('\x1b[1A', end='')
+
+    @always_inline
+    fn _clear_line(self):
+        print('\x1b[2K', end='')
+
+    fn _left_pad(self, s: String, pad_to: Int, pad_value: String=' ') -> String:
+        var padding_needed = pad_to - len(s)
+        return pad_value * padding_needed + s 
+
+    fn _n_digits(self, owned int: Int) -> Int:
+        var n = 1
+        while int >= 10:
+            n += 1
+            int //= 10
+        return n
