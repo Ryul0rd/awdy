@@ -79,11 +79,19 @@ struct awdy:
         pass
 
     fn draw(self):
+        if not self.total:
+            print(self._bar(full=False))
+        elif self.current > self.total.or_else(0):
+            print(self._bar(full=False))
+        else:
+            print(self._bar(full=True))
+
+    fn _bar(self, full: Bool) -> String:
         var l_bar = String()
         var m_bar = String()
         var r_bar = String()
 
-        if self.total:
+        if full:
             var total = self.total.or_else(0)
             l_bar = self._left_pad(self.current * 100 // total, 3) + '%'
             r_bar = (
@@ -107,7 +115,7 @@ struct awdy:
             l_bar = String(self.current) + self.unit + ' '
             r_bar = String('[') + self._format_time(self._last_update_time - self._start_time) + ', ' + self._format_rate() + ']'
 
-        print(l_bar + m_bar + r_bar)
+        return l_bar + m_bar + r_bar
 
     fn redraw(self):
         self._move_cursor_up()
