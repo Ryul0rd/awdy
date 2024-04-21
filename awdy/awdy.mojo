@@ -52,18 +52,20 @@ struct awdy:
         var current_time = now()
 
         # update _current_ema
-        if self.smoothing == 1:
-            if self.current == 0:
-                self._current_ema = Int.MAX
-            else:
+        if increment != 0 and self.current != 0:
+            if self.smoothing == 1:
                 self._current_ema = (current_time - self._start_time) // self.current
-        else:
-            var time_since_last_update = current_time - self._last_update_time
-            if self._current_ema:
+            elif self._current_ema:
                 var current_ema = self._current_ema.or_else(0)
-                self._current_ema = (current_ema * self.smoothing + time_since_last_update * (1 - self.smoothing)).to_int()
+                var time_since_last_update = current_time - self._last_update_time
+                var time_per_increment_unit = time_since_last_update // increment
+                for _ in range(increment):
+                    current_ema = (current_ema * self.smoothing + time_per_increment_unit * (1 - self.smoothing)).to_int()
+                self._current_ema = current_ema
             else:
-                self._current_ema = time_since_last_update
+                var time_since_last_update = current_time - self._last_update_time
+                var time_per_increment_unit = time_since_last_update // increment
+                self._current_ema = time_per_increment_unit
         
         # redraw if appropriate
         var time_since_last_draw_sec = (current_time - self._last_draw_time) / 1_000_000_000
