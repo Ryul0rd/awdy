@@ -8,12 +8,16 @@ var current_bars = List[String]()
 var bar_closed = List[Bool]()
 
 
-# TODO: handle context manager
+# TODO: think about removing close
+# TODO: rename current_bars and bar_closed etc to indicate that they're private
+# TODO: fix redraw
+# TODO: handle finalizing rate on close
 # TODO: handle unit_scale
 # TODO: handle ascii
-# TODO: use string builder
+# TODO: add docstrings
 
 
+@value
 struct awdy:
     var desc: Optional[String]
     var current: Int
@@ -159,16 +163,23 @@ struct awdy:
         self._move_cursor_to_line_start()
         self.draw()
 
-    fn write(self, message: String):
-        self._move_cursor_to_line_start()
-        self._clear_line()
+    @staticmethod
+    fn write(message: String):
+        Self._move_cursor_to_line_start()
+        Self._clear_line()
         for _ in range(len(current_bars)-1):
-            self._move_cursor_up()
-            self._clear_line()
+            Self._move_cursor_up()
+            Self._clear_line()
         print(message)
         for i in range(len(current_bars)):
             if not bar_closed[i]:
                 print(current_bars[i], end='\n' if i+1 != len(current_bars) else '')
+
+    fn __enter__(owned self) -> Self:
+        return self^
+
+    fn __del__(owned self):
+        self.close()
 
     fn _format_time(self, time: Int) -> String:
         var dt_s = time // 1_000_000_000
@@ -212,23 +223,28 @@ struct awdy:
         else:
             return String(number)[:chars_wanted]
 
+    @staticmethod
     @always_inline
-    fn _move_cursor_up(self):
+    fn _move_cursor_up():
         print('\x1b[1A', end='')
 
+    @staticmethod
     @always_inline
-    fn _clear_line(self):
+    fn _clear_line():
         print('\x1b[2K', end='')
 
+    @staticmethod
     @always_inline
-    fn _move_cursor_to_line_start(self):
+    fn _move_cursor_to_line_start():
         print('\r', end='')
 
-    fn _left_pad(self, s: String, pad_to: Int, pad_value: String=' ') -> String:
+    @staticmethod
+    fn _left_pad(s: String, pad_to: Int, pad_value: String=' ') -> String:
         var padding_needed = pad_to - len(s)
         return pad_value * padding_needed + s 
 
-    fn _n_digits(self, owned int: Int) -> Int:
+    @staticmethod
+    fn _n_digits(owned int: Int) -> Int:
         var n = 1
         while int >= 10:
             n += 1
