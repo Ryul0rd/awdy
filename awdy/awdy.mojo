@@ -4,10 +4,18 @@ from time import now, sleep
 
 alias ASCII_PARTIAL_FULL_CHARS = String(' 123456789')
 
-var x: Int = 5
+var current_bars = List[String]()
+var bar_closed = List[Bool]()
+
+
+# TODO: handle context manager
+# TODO: handle unit_scale
+# TODO: handle ascii
+# TODO: use string builder
 
 
 struct awdy:
+    var desc: Optional[String]
     var current: Int
     var total: Optional[Int]
     var leave: Bool
@@ -19,20 +27,23 @@ struct awdy:
     var _current_ema: Optional[Int]
     #var unit_scale: complicated
     #var unit_divisor: Float
+    var _position: Int
     var _start_time: Int
     var _last_update_time: Int
     var _last_draw_time: Int
 
     fn __init__(
         inout self,
+        desc: Optional[String] = None,
         total: Optional[Int] = None,
         leave: Bool = True,
         ncols: Int = 120,
         mininterval: Float64 = 0.1,
         ascii: Bool=False,
         unit: String = 'it',
-        smoothing: Float64 = 0.3
+        smoothing: Float64 = 0.3,
     ):
+        self.desc = desc
         self.current = 0
         self.total = total
         self.leave = leave
@@ -41,10 +52,16 @@ struct awdy:
         self.ascii = ascii
         self.unit = unit
         self.smoothing = smoothing
+        self._position = len(current_bars)
         self._current_ema = None
         self._start_time = now()
         self._last_update_time = self._start_time
         self._last_draw_time = self._start_time
+
+        if len(current_bars):
+            print()
+        current_bars.append('')
+        bar_closed.append(False)
         self.draw()
 
     fn update(inout self, increment: Int=1):
@@ -76,15 +93,35 @@ struct awdy:
         self._last_update_time = current_time
 
     fn close(self):
-        pass
+        self._move_cursor_to_line_start()
+        self._clear_line()
+        for _ in range(len(current_bars)-1):
+            self._move_cursor_up()
+            self._clear_line()
+        if self.leave:
+            self.draw()
+            print()
+        
+        bar_closed[self._position] = True
+        while len(bar_closed) and bar_closed[-1]:
+            _ = bar_closed.pop_back()
+            _ = current_bars.pop_back()
+        
+        for i in range(len(current_bars)):
+            if not bar_closed[i]:
+                print(current_bars[i], end='\n' if i+1 != len(current_bars) else '')
 
     fn draw(self):
+        var bar = String()
         if not self.total:
-            print(self._bar(full=False))
+            bar = self._bar(full=False)
         elif self.current > self.total.or_else(0):
-            print(self._bar(full=False))
+            bar = self._bar(full=False)
         else:
-            print(self._bar(full=True))
+            bar = self._bar(full=True)
+
+        current_bars[self._position] = bar
+        print(current_bars[self._position], end='')
 
     fn _bar(self, full: Bool) -> String:
         var l_bar = String()
@@ -118,14 +155,20 @@ struct awdy:
         return l_bar + m_bar + r_bar
 
     fn redraw(self):
-        self._move_cursor_up()
         self._clear_line()
+        self._move_cursor_to_line_start()
         self.draw()
 
-    fn write(self):
-        """Is this even possible?. Yes!."""
-        # awprinty
-        pass
+    fn write(self, message: String):
+        self._move_cursor_to_line_start()
+        self._clear_line()
+        for _ in range(len(current_bars)-1):
+            self._move_cursor_up()
+            self._clear_line()
+        print(message)
+        for i in range(len(current_bars)):
+            if not bar_closed[i]:
+                print(current_bars[i], end='\n' if i+1 != len(current_bars) else '')
 
     fn _format_time(self, time: Int) -> String:
         var dt_s = time // 1_000_000_000
@@ -176,6 +219,10 @@ struct awdy:
     @always_inline
     fn _clear_line(self):
         print('\x1b[2K', end='')
+
+    @always_inline
+    fn _move_cursor_to_line_start(self):
+        print('\r', end='')
 
     fn _left_pad(self, s: String, pad_to: Int, pad_value: String=' ') -> String:
         var padding_needed = pad_to - len(s)
