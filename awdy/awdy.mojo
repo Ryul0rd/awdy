@@ -4,14 +4,13 @@ from time import now, sleep
 
 alias ASCII_PARTIAL_FULL_CHARS = String(' 123456789')
 
-var current_bars = List[String]()
-var bar_closed = List[Bool]()
+var _current_bars = List[String]()
+var _bar_closed = List[Bool]()
 
 
-# TODO: think about removing close
-# TODO: rename current_bars and bar_closed etc to indicate that they're private
 # TODO: fix redraw
 # TODO: handle finalizing rate on close
+# TODO: cleanup draw / _bar (add str.format equivalent???)
 # TODO: handle unit_scale
 # TODO: handle ascii
 # TODO: add docstrings
@@ -56,16 +55,16 @@ struct awdy:
         self.ascii = ascii
         self.unit = unit
         self.smoothing = smoothing
-        self._position = len(current_bars)
+        self._position = len(_current_bars)
         self._current_ema = None
         self._start_time = now()
         self._last_update_time = self._start_time
         self._last_draw_time = self._start_time
 
-        if len(current_bars):
+        if len(_current_bars):
             print()
-        current_bars.append('')
-        bar_closed.append(False)
+        _current_bars.append('')
+        _bar_closed.append(False)
         self.draw()
 
     fn update(inout self, increment: Int=1):
@@ -96,25 +95,6 @@ struct awdy:
 
         self._last_update_time = current_time
 
-    fn close(self):
-        self._move_cursor_to_line_start()
-        self._clear_line()
-        for _ in range(len(current_bars)-1):
-            self._move_cursor_up()
-            self._clear_line()
-        if self.leave:
-            self.draw()
-            print()
-        
-        bar_closed[self._position] = True
-        while len(bar_closed) and bar_closed[-1]:
-            _ = bar_closed.pop_back()
-            _ = current_bars.pop_back()
-        
-        for i in range(len(current_bars)):
-            if not bar_closed[i]:
-                print(current_bars[i], end='\n' if i+1 != len(current_bars) else '')
-
     fn draw(self):
         var bar = String()
         if not self.total:
@@ -124,8 +104,8 @@ struct awdy:
         else:
             bar = self._bar(full=True)
 
-        current_bars[self._position] = bar
-        print(current_bars[self._position], end='')
+        _current_bars[self._position] = bar
+        print(_current_bars[self._position], end='')
 
     fn _bar(self, full: Bool) -> String:
         var l_bar = String()
@@ -167,19 +147,35 @@ struct awdy:
     fn write(message: String):
         Self._move_cursor_to_line_start()
         Self._clear_line()
-        for _ in range(len(current_bars)-1):
+        for _ in range(len(_current_bars)-1):
             Self._move_cursor_up()
             Self._clear_line()
         print(message)
-        for i in range(len(current_bars)):
-            if not bar_closed[i]:
-                print(current_bars[i], end='\n' if i+1 != len(current_bars) else '')
+        for i in range(len(_current_bars)):
+            if not _bar_closed[i]:
+                print(_current_bars[i], end='\n' if i+1 != len(_current_bars) else '')
 
     fn __enter__(owned self) -> Self:
         return self^
 
     fn __del__(owned self):
-        self.close()
+        self._move_cursor_to_line_start()
+        self._clear_line()
+        for _ in range(len(_current_bars)-1):
+            self._move_cursor_up()
+            self._clear_line()
+        if self.leave:
+            self.draw()
+            print()
+        
+        _bar_closed[self._position] = True
+        while len(_bar_closed) and _bar_closed[-1]:
+            _ = _bar_closed.pop_back()
+            _ = _current_bars.pop_back()
+        
+        for i in range(len(_current_bars)):
+            if not _bar_closed[i]:
+                print(_current_bars[i], end='\n' if i+1 != len(_current_bars) else '')
 
     fn _format_time(self, time: Int) -> String:
         var dt_s = time // 1_000_000_000
