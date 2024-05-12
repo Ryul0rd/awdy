@@ -182,15 +182,16 @@ struct awdy:
             Self._move_cursor_up()
             Self._clear_line()
 
-    fn _format_time(self, time: Int) -> String:
+    @staticmethod
+    fn _format_time(time: Int) -> String:
         var dt_s = time // 1_000_000_000
         var dt_m = dt_s // 60
         var dt_h = dt_m // 60
         var s_remainder = dt_s % 60
         var m_remainder = dt_m % 60
 
-        var s = String() if dt_h == 0 else self._left_pad(dt_h, 2, '0') + ':'
-        s += self._left_pad(m_remainder, 2, '0') + ':' + self._left_pad(s_remainder, 2, '0')
+        var s = String() if dt_h == 0 else Self._left_pad(dt_h, 2, '0') + ':'
+        s += Self._left_pad(m_remainder, 2, '0') + ':' + Self._left_pad(s_remainder, 2, '0')
         return s
 
     fn _format_rate(self) -> String:
