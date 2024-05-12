@@ -80,7 +80,7 @@ struct awdy:
                 var time_since_last_update = current_time - self._last_update_time
                 var time_per_increment_unit = time_since_last_update // increment
                 for _ in range(increment):
-                    current_ema = (current_ema * self.smoothing + time_per_increment_unit * (1 - self.smoothing)).to_int()
+                    current_ema = int(current_ema * self.smoothing + time_per_increment_unit * (1 - self.smoothing))
                 self._current_ema = current_ema
             else:
                 var time_since_last_update = current_time - self._last_update_time
@@ -124,10 +124,10 @@ struct awdy:
             var m_bar_size_budget = self.ncols - len(l_bar) - len(r_bar) - 2
             if m_bar_size_budget > 0:
                 var full_cells = self.current / total * m_bar_size_budget
-                var n_full_cells = full_cells.to_int()
-                var n_empty_cells = (m_bar_size_budget - full_cells).to_int()
+                var n_full_cells = int(full_cells)
+                var n_empty_cells = int(m_bar_size_budget - full_cells)
                 var partial_full_cell = (
-                    ASCII_PARTIAL_FULL_CHARS[(full_cells % 1 * 10).to_int()]
+                    ASCII_PARTIAL_FULL_CHARS[int(full_cells % 1 * 10)]
                     if n_full_cells + n_empty_cells != m_bar_size_budget
                     else String()
                 )
@@ -139,43 +139,48 @@ struct awdy:
         return l_bar + m_bar + r_bar
 
     fn redraw(self):
-        self._clear_line()
-        self._move_cursor_to_line_start()
+        self._clear_bars(_current_bars)
         self.draw()
+        if len(_current_bars) > 1:
+            print()
+        for i in range(1, len(_current_bars)):
+            if not _bar_closed[i]:
+                var not_final_bar = i+1 != len(_current_bars)
+                print(_current_bars[i], end='\n' if not_final_bar else '')
 
     @staticmethod
     fn write(message: String):
-        Self._move_cursor_to_line_start()
-        Self._clear_line()
-        for _ in range(len(_current_bars)-1):
-            Self._move_cursor_up()
-            Self._clear_line()
+        Self._clear_bars(_current_bars)
         print(message)
         for i in range(len(_current_bars)):
             if not _bar_closed[i]:
-                print(_current_bars[i], end='\n' if i+1 != len(_current_bars) else '')
+                var not_final_bar = i+1 != len(_current_bars)
+                print(_current_bars[i], end='\n' if not_final_bar else '')
 
     fn __enter__(owned self) -> Self:
         return self^
 
     fn __del__(owned self):
-        self._move_cursor_to_line_start()
-        self._clear_line()
-        for _ in range(len(_current_bars)-1):
-            self._move_cursor_up()
-            self._clear_line()
+        self._clear_bars(_current_bars)
         if self.leave:
             self.draw()
             print()
-        
         _bar_closed[self._position] = True
         while len(_bar_closed) and _bar_closed[-1]:
-            _ = _bar_closed.pop_back()
-            _ = _current_bars.pop_back()
-        
+            _ = _bar_closed.pop()
+            _ = _current_bars.pop()
         for i in range(len(_current_bars)):
             if not _bar_closed[i]:
-                print(_current_bars[i], end='\n' if i+1 != len(_current_bars) else '')
+                var not_final_bar = i+1 != len(_current_bars)
+                print(_current_bars[i], end='\n' if not_final_bar else '')
+
+    @staticmethod
+    fn _clear_bars(current_bars: List[String]):
+        Self._move_cursor_to_line_start()
+        Self._clear_line()
+        for _ in range(len(current_bars)-1):
+            Self._move_cursor_up()
+            Self._clear_line()
 
     fn _format_time(self, time: Int) -> String:
         var dt_s = time // 1_000_000_000
@@ -208,10 +213,10 @@ struct awdy:
         var elapsed_time_ns = self._last_update_time - self._start_time
         var unit_per_ns = 1 / self._current_ema.or_else(0)
         var etr = remaining / unit_per_ns
-        return self._format_time(etr.to_int())
+        return self._format_time(int(etr))
 
     fn _format_round(self, number: Float64, owned ndigits: Int) -> String:
-        var n_left_of_point = self._n_digits(number.to_int())
+        var n_left_of_point = self._n_digits(int(number))
         var chars_wanted = n_left_of_point+1+ndigits
         var num_s = String(number)
         if chars_wanted >= len(num_s):
@@ -223,6 +228,11 @@ struct awdy:
     @always_inline
     fn _move_cursor_up():
         print('\x1b[1A', end='')
+
+    @staticmethod
+    @always_inline
+    fn _move_cursor_down():
+        print('\x1b[1B', end='')
 
     @staticmethod
     @always_inline
