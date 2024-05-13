@@ -2,6 +2,10 @@ from awdy.awdy import awdy
 from testing import assert_equal
 
 
+def test_perc_done():
+    pass
+
+
 def test_format_time():
     var expected = String('01:01')
     var result = awdy._format_time(61 * 1_000_000_000)
