@@ -91,7 +91,11 @@ struct awdy:
                 print(_current_bars[i], end='\n' if not_final_bar else '')
 
     fn update(inout self, increment: Int=1):
-        """Increment current progress, update time estimates, and redraw bar if necessary."""
+        """Increment current progress, update time estimates, and redraw bar if necessary.
+        
+        Args:
+            increment: The number of units to increment the progress by.
+        """
         self.n += increment
         var current_time = now()
 
