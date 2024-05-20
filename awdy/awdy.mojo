@@ -121,7 +121,7 @@ struct awdy:
 
     @staticmethod
     fn _ema(
-        prev_value: Optional[Int],
+        current_value: Optional[Int],
         smoothing: Float64,
         increment: Int,
         n: Int,
@@ -129,15 +129,27 @@ struct awdy:
         start_time: Int,
         last_update_time: Int,
     ) -> Optional[Int]:
+        """Calculate the new exponential moving average value from the last value.
+
+        Args:
+            current_value: The last ema value.
+            smoothing: Smoothing factor. 1 is instantaeous speed (no smoothing) and 0 is a simple mean.
+            increment: The amount we're incrementing by.
+            n: Current progress value.
+            current_time: The current time in ns.
+            start_time: The start time in ns.
+            last_update_time: The last time update was called in ns.
+        """
         if increment == 0 or n == 0:
             return None
-        if smoothing == 0 or not prev_value:
+        if smoothing == 0 or not current_value:
             return (current_time - start_time) // n
         else:
-            var new_value = prev_value.or_else(0)
-            var current_val = (current_time - last_update_time) // increment
-            for _ in range(increment):
-                new_value = int(current_val * smoothing + new_value * (1 - smoothing))
+            var instantaneous_value = (current_time - last_update_time) // increment
+            var new_value = int(
+                instantaneous_value * (1 - (1 - smoothing)**increment)
+                + current_value.or_else(0) * (1 - smoothing)**increment
+            )
             return new_value
 
     @staticmethod
