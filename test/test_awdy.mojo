@@ -2,6 +2,44 @@ from awdy.awdy import awdy
 from testing import assert_equal
 
 
+# _ema
+def test_ema_smoke():
+    assert_equal(
+        awdy._ema(100, 0.3, 1, 1, 200, 0, 0).or_else(0),
+        130,
+    )
+
+def test_ema_multi():
+    var smoothing = 0.75
+    var init: Optional[Int] = None
+    var first = awdy._ema(init, smoothing, 1, 1, 20, 0, 0)
+    var second = awdy._ema(first, smoothing, 1, 2, 70, 0, 10)
+    var third = awdy._ema(second, smoothing, 1, 3, 90, 0, 70)
+    assert_equal(first.or_else(0), 20)
+    assert_equal(second.or_else(0), 50)
+    assert_equal(third.or_else(0), 27)
+
+def test_ema_big_increment():
+    var smoothing = 0.25
+    var init: Optional[Int] = None
+    var first = awdy._ema(init, smoothing, 5, 5, 100, 0, 0)
+    var second = awdy._ema(first, smoothing, 2, 7, 300, 0, 100)
+    assert_equal(first.or_else(0), 20)
+    assert_equal(second.or_else(0), 55)
+
+def test_ema_no_smooth():
+    assert_equal(
+        awdy._ema(100, 0, 1, 1, 300, 0, 0).or_else(0),
+        300,
+    )
+
+def test_ema_full_smooth():
+    assert_equal(
+        awdy._ema(100, 1, 1, 1, 100, 0, 0).or_else(0),
+        100,
+    )
+
+
 # _bar
 def test_bar_smoke():
     assert_equal(awdy._meter(5, 10, 4), '##  ')

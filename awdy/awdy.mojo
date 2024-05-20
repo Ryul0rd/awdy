@@ -96,13 +96,15 @@ struct awdy:
         var current_time = now()
 
         # update _ns_per_unit estimate
-        if increment != 0 and self.n != 0:
-            if self.smoothing == 0 or not self._ns_per_unit:
-                self._ns_per_unit = (current_time - self._start_time) // self.n
-            else:
-                var time_per_increment_unit = (current_time - self._last_update_time) // increment
-                for _ in range(increment):
-                    self._ns_per_unit = int(self._ns_per_unit.or_else(0) * self.smoothing + time_per_increment_unit * (1 - self.smoothing))
+        self._ns_per_unit = Self._ema(
+            self._ns_per_unit,
+            self.smoothing,
+            increment,
+            self.n,
+            current_time,
+            self._start_time,
+            self._last_update_time,
+        )
 
         # redraw if appropriate
         var time_since_last_draw_sec = (current_time - self._last_draw_time) / 1_000_000_000
@@ -116,6 +118,27 @@ struct awdy:
                     print(_current_bars[i], end='\n' if not_final_bar else '')
 
         self._last_update_time = current_time
+
+    @staticmethod
+    fn _ema(
+        prev_value: Optional[Int],
+        smoothing: Float64,
+        increment: Int,
+        n: Int,
+        current_time: Int,
+        start_time: Int,
+        last_update_time: Int,
+    ) -> Optional[Int]:
+        if increment == 0 or n == 0:
+            return None
+        if smoothing == 0 or not prev_value:
+            return (current_time - start_time) // n
+        else:
+            var new_value = prev_value.or_else(0)
+            var current_val = (current_time - last_update_time) // increment
+            for _ in range(increment):
+                new_value = int(current_val * smoothing + new_value * (1 - smoothing))
+            return new_value
 
     @staticmethod
     fn write(message: String):
