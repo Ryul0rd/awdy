@@ -9,7 +9,6 @@ var _current_bars = List[String]()
 var _bar_closed = List[Bool]()
 
 
-# TODO: handle finalizing rate on close
 # TODO: handle unit_scale
 # TODO: handle ascii
 
@@ -79,6 +78,8 @@ struct awdy:
         """Mark progress bar as closed and and print updated bar order."""
         self._clear_bars(_current_bars)
         if self.leave:
+            # we set _ns_per_unit here to be the overall average rate instead of the estimated rate at the end.
+            self._ns_per_unit = (self._last_update_time - self._start_time) // self.n
             _current_bars[self._position] = self._progress_bar()
             print(_current_bars[self._position])
         _bar_closed[self._position] = True
@@ -200,8 +201,8 @@ struct awdy:
             .replace('{elapsed}', Self._format_time(self._last_update_time - self._start_time))
             .replace('{remaining}', Self._time_remaining(self._ns_per_unit, self.n, total))
             .replace('{rate}', Self._rate(self._ns_per_unit, self.unit))
+            .replace('{desc}', self.desc.or_else('') + ': ' if self.desc else '')
         )
-        bar = bar.replace('{desc}', self.desc.or_else('') + ': ' if self.desc else '')
         var bar_size = self.ncols - len(bar)
         bar = bar.replace('{bar}', Self._meter(self.n, total, bar_size))
         return bar
