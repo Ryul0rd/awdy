@@ -16,3 +16,6 @@ Note that because Mojo doesn't support an Iterable trait yet, we can't do someth
 for thing in awdy(my_iterable):
     ...
 ```
+
+## License
+MIT
