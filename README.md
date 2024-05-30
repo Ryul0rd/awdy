@@ -11,6 +11,7 @@ with awdy(total=100, leave=True) as pb:
             awdy.write('Halfway done!')
 ```
 ![Basic usage result](./awdy_example.png)
+
 Note that because Mojo doesn't support an Iterable trait yet, we can't do something like:
 ```mojo
 for thing in awdy(my_iterable):
